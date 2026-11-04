@@ -1,0 +1,10 @@
+# Mount the message-action example for one launch (run from the repository root):
+#   pnpm dsh web --patch message-actions-plugin/message-actions.cordis.yml
+#
+# Paths must be absolute and must name the entry file: the packaged runtime is
+# plain ESM and rejects a directory import with ERR_UNSUPPORTED_DIR_IMPORT.
+# If you move or extract this directory elsewhere, replace the path below with
+# your location. An existing overlay can insert this row beside its own rows.
+- insert:
+    - id: message-actions
+      name: 'E:/deepseek-harness/message-actions-plugin/index.js'
