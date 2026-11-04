@@ -1,0 +1,12 @@
+{
+  "name": "@example/dsh-message-actions",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone message action-strip plugin: one button beside the built-in copy control on both user and assistant messages in the dsh web client",
+  "main": "index.js",
+  "exports": { ".": "./index.js", "./client": "./client.js" },
+  "dsh": {
+    "client": { "platform": "web" }
+  }
+}
