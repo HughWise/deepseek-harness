@@ -14,7 +14,7 @@ import type {
   ChatConversationViewNode, SteeringMessageNode, UserMessageNode,
 } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type { ChatNodeViewProps, UserContentInput } from '../src/client/contract/slots.ts'
-import { UserMessageNodeView } from '../src/client/chat/MessageItem.tsx'
+import { SteeringMessageNodeView, UserMessageNodeView } from '../src/client/chat/MessageItem.tsx'
 import { zh } from '../src/client/locale.ts'
 import { createUserContentFixture } from './user-content-component-fixture.tsx'
 import { unusedImageLoader } from './reasoning-component-fixture.tsx'
@@ -22,7 +22,7 @@ import { unusedImageLoader } from './reasoning-component-fixture.tsx'
 afterEach(cleanup)
 
 const t: ChatNodeViewProps['t'] = makeTranslate(zh, commonZh)
-type UserSlots = PropsRenderSlots<'conversation.chat.user.before'>
+type UserSlots = PropsRenderSlots<'conversation.chat.user.before' | 'conversation.chat.user-actions'>
 const userSlots: UserSlots = {
   renderSlot: () => null,
   renderSlotChain: (_key, _owner, opts) => opts?.fallback ?? null,
@@ -124,7 +124,7 @@ describe('official user renderer origin seat', () => {
     const renderSlotChain = vi.fn(() => <span data-test-origin="" />)
     const view = render(<>
       <UserMessageNodeView {...viewProps(userData)} {...userSlots} renderSlotChain={renderSlotChain} />
-      <UserMessageNodeView {...viewProps(steeringData)} renderSlotChain={() => null} />
+      <SteeringMessageNodeView {...viewProps(steeringData)} />
     </>)
     const steeringRow = view.container.lastElementChild!
     expect(steeringRow.textContent).toContain('steer')

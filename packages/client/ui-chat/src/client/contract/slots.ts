@@ -63,10 +63,19 @@ export interface TurnTailOwnerProps {
   openFile: (path: string) => void
 }
 
-/** Owner currency of finalized-assistant actions. */
-export interface AssistantActionOwnerProps {
+/** Owner currency of one finalized message's action strip. */
+export interface MessageActionOwnerProps {
+  /** Durable identity of the message the strip acts on. */
   messageId: MessageId
+  /** Plain text the strip's built-in copy action writes. */
+  text: string
 }
+
+/** Owner currency of finalized-assistant actions. */
+export type AssistantActionOwnerProps = MessageActionOwnerProps
+
+/** Owner currency of finalized-user actions. */
+export type UserActionOwnerProps = MessageActionOwnerProps
 
 /** Stable quota failure codes retained in the Session log; both raise the frame-wide notice. */
 export type QuotaNoticeCode = 'QUOTA' | 'ACCOUNT_QUOTA'
@@ -487,10 +496,21 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'conversation.chat.turnTail': { kind: 'list'; scope: 'session'; owner: TurnTailOwnerProps }
     /**
      * Ordered actions for one finalized assistant message. Each entry receives
-     * the durable message id; a fresh `id` adds an action and reusing one replaces
-     * that entry. With no entries, the standard action row remains unchanged.
+     * the durable message id and the text the copy action writes; a fresh `id`
+     * adds an action and reusing one replaces that entry. With no entries, the
+     * standard action row remains unchanged. Interruption-frozen partials carry
+     * no durable id and render no contributions.
      */
     'conversation.chat.assistant-actions': { kind: 'list'; scope: 'session'; owner: AssistantActionOwnerProps }
+    /**
+     * Ordered actions for one finalized user message, rendered inside the same
+     * IconActions row as the built-in copy control. Each entry receives the
+     * durable message id and the text the copy action writes; a fresh `id` adds
+     * an action and reusing one replaces that entry. With no entries, the
+     * standard action row remains unchanged. Pending submissions and steering
+     * rows render no contributions.
+     */
+    'conversation.chat.user-actions': { kind: 'list'; scope: 'session'; owner: UserActionOwnerProps }
     /**
      * Frame-wide quota notice chain. The Chat-owned host in `shell.overlay`
      * offers the one live notice; the first entry whose selector claims its

@@ -8,6 +8,8 @@ Slots 是 Web Client 的类型化 React 组合系统。[`dsh-client-ui-slots`](.
 
 `plugins.bundle.config` 以 npm 包名为 key，提供 Bundle 详情配置。`plugins.bundle.activation` 在用户显式启用后渲染可选引导，由拥有者提供关闭引导和打开该 Bundle 详情的回调。`conversation.input.activity` 提供模型选择器与发送按钮之间的单个活动控件，可展开工具栏并在卸载时释放展开状态。
 
+`conversation.chat.user-actions` 与 `conversation.chat.assistant-actions` 在一条已定稿消息的图标行内提供有序动作。每个入口收到消息 id 与内置复制控件写入的文本，并渲染在该复制控件之后。待提交项、steering 行和被中断冻结的助手部分输出不渲染任何贡献项。
+
 插件目录声明 `plugins.add.actions`，它是 root 作用域的 list，在添加插件菜单的安装项之后提供 `MenuItemButton` 行。owner 提供 `onDismiss()`，用于开始动作前关闭菜单。该 slot 遵循所属插件页面声明的生命周期。
 
 root 作用域的 list `sidebar.panellist.actions`、`conversation.session.header.views.actions` 和 `sidebar.right.tab.guide.actions` 提供面板行、View 标签和右侧栏引导卡片之后“更多”菜单的菜单行。区域只在其 list 有注册项时画“更多”按钮与菜单，并传入可自定义的入口及其 Pin 状态、`onOpen`、`onPinnedChange` 与 `onDismiss`。面板和 View 入口还通过可选的 `active` 状态标识当前选中项，该状态独立于 Pin 状态。root 作用域的 `sidebar.panel.icon` factory 拥有 `sidebar.panellist` list，按 `id`、`size` 与 `active` 为侧栏行和更多菜单入口渲染已注册图标。各区域在内存中维护已收起的入口 id；[`ui-entry-customization`](../../packages/client/ui-entry-customization/README.zh.md) 注册随产品提供的菜单行。
@@ -148,8 +150,9 @@ Factory: conversation.content [ConversationContent]
 │     │     └─ conversation.chat.node [ChatNodeSeat dispatch]
 │     │        ├─ key=user [UserMessageNodeView]
 │     │        │  ├─ conversation.chat.user.before [chain]
-│     │        │  └─ calls Factory: conversation.chat.user.content
-│     │        ├─ key=steering [UserMessageNodeView]
+│     │        │  ├─ calls Factory: conversation.chat.user.content
+│     │        │  └─ conversation.chat.user-actions [list]
+│     │        ├─ key=steering [SteeringMessageNodeView]
 │     │        │  └─ calls Factory: conversation.chat.user.content
 │     │        ├─ key=assistant-step [AssistantNodeView / AssistantMarkdown]
 │     │        │  ├─ conversation.chat.message.images [MessageImages]

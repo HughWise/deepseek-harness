@@ -15,7 +15,7 @@ import type {
   ChatViewSlotProps, CommandNode, CompactionSummaryNode, ContextMessageNode, ConversationNode,
   LegacyConversationSlice, ModelRetryNode, StartedToolCall, SteeringMessageNode,
   ToolCallBlock, ToolResultNode, TurnErrorNode, TurnMaxTokensNode,
-  TranscriptViewMode, UserContentInput, UserMessageNode,
+  TranscriptViewMode, UserActionOwnerProps, UserContentInput, UserMessageNode,
 } from '@deepseek-ai/dsh-client-ui-chat/client'
 import type {
   SessionListState, SessionSnapshot,
@@ -45,7 +45,7 @@ import { en, zh, pt } from '../src/client/locale.ts'
 import { AssistantNodeView } from '../src/client/chat/AssistantNodeView.tsx'
 import { CommandNodeView, ManualCompactionNodeView } from '../src/client/chat/CommandNodeView.tsx'
 import {
-  CompactionNodeView, ContextMessageNodeView, RetryNodeView, TurnErrorNodeView,
+  CompactionNodeView, ContextMessageNodeView, RetryNodeView, SteeringMessageNodeView, TurnErrorNodeView,
   TurnMaxTokensNodeView, UnknownNodeView, UserMessageNodeView,
 } from '../src/client/chat/MessageItem.tsx'
 import { TurnTailNodeView } from '../src/client/chat/TurnTailNodeView.tsx'
@@ -164,15 +164,16 @@ function makeChatSource(init: ChatSlice = {}, snapshot?: ChatSnapshot) {
   }
 }
 
-const user = (seq: number, text: string): UserMessageNode => ({
+const user = (seq: number, text: string, messageId?: MessageId): UserMessageNode => ({
   kind: 'user',
   seq,
   time: seq * 1000,
   content: [{ type: 'text', text }] as never,
   source: null,
+  ...(messageId === undefined ? {} : { messageId }),
 })
-const userInTurn = (seq: number, text: string, turn: number): ConversationNode => ({
-  ...user(seq, text),
+const userInTurn = (seq: number, text: string, turn: number, messageId?: MessageId): ConversationNode => ({
+  ...user(seq, text, messageId),
   // The production Location index owns this association. The legacy fixture
   // accepts the extra coordinate so component tests can build the same view.
   turn,
@@ -268,6 +269,7 @@ type FlowRenderer = typeof flowDispatch<'conversation.chat.flow'>
 type ImageRenderer = (owner: MessageImagesOwnerProps) => React.ReactNode
 declare const userChainDispatch: PropsRenderSlots<'conversation.chat.user.before'>['renderSlotChain']
 type UserChainRenderer = typeof userChainDispatch<'conversation.chat.user.before'>
+type UserActionsRenderer = (owner: UserActionOwnerProps) => React.ReactNode
 type UserChainState = { readonly renderer: UserChainRenderer | undefined }
 type HarnessStandardProps = ChatViewSlotProps & PropsRenderFactories & Pick<React.ComponentProps<typeof AssistantNodeView>, 'fileMentions'>
 
@@ -275,6 +277,10 @@ function isImageOwner(owner: object): owner is MessageImagesOwnerProps {
   return 'images' in owner && Array.isArray(owner.images)
     && 'loadImage' in owner && typeof owner.loadImage === 'function'
     && 'align' in owner && (owner.align === 'start' || owner.align === 'end')
+}
+function isUserActionOwner(owner: object): owner is UserActionOwnerProps {
+  return 'messageId' in owner && typeof owner.messageId === 'string'
+    && 'text' in owner && typeof owner.text === 'string'
 }
 type ToolOwner = Pick<ChatNodeOwnerProps, 'openFile' | 'inspectCall'> & {
   readonly callId: string
@@ -312,7 +318,8 @@ function HarnessUserOrigin({ useRenderer, owner, options }: {
 }
 
 function HarnessChatNode({
-  standard, owner, hookContext, usePerformanceUsage, toolOwners, fallback, renderAssistantSlot, renderUserChain,
+  standard, owner, hookContext, usePerformanceUsage, toolOwners, fallback,
+  renderAssistantSlot, renderUserChain, renderUserActions,
 }: {
   readonly standard: HarnessStandardProps
   readonly owner: RoutedChatNodeOwner
@@ -322,6 +329,7 @@ function HarnessChatNode({
   readonly fallback: React.ReactNode
   readonly renderAssistantSlot: React.ComponentProps<typeof AssistantNodeView>['renderSlot']
   readonly renderUserChain: PropsRenderSlots<'conversation.chat.user.before'>['renderSlotChain']
+  readonly renderUserActions: PropsRenderSlots<'conversation.chat.user-actions'>['renderSlot']
 }) {
   const hooks = useMemo(() => ({
     useTurnData: CHAT_NODE_INJECT.hooks.turnData(standard, hookContext),
@@ -332,9 +340,10 @@ function HarnessChatNode({
   const nodeProps = { ...shared, ...owner, ...hooks }
   switch (owner.node.kind) {
     case 'user':
-      return <UserMessageNodeView {...nodeProps} node={owner.node} renderSlotChain={renderUserChain} />
+      return <UserMessageNodeView {...nodeProps} node={owner.node}
+        renderSlotChain={renderUserChain} renderSlot={renderUserActions} />
     case 'steering':
-      return <UserMessageNodeView {...nodeProps} node={owner.node} renderSlotChain={() => null} />
+      return <SteeringMessageNodeView {...nodeProps} node={owner.node} />
     case 'context':
       return <ContextMessageNodeView {...nodeProps} node={owner.node} />
     case 'assistant-step':
@@ -446,6 +455,7 @@ function makeHarness(
   const useOriginRenderer = bindSnapshotSelector(originRenderer)
   let nodeSlotOverride: NodeRenderer | undefined
   let imageSlotOverride: ImageRenderer | undefined
+  let userActionsOverride: UserActionsRenderer | undefined
   const renderImages = (name: string, owner: object, options?: { fallback?: React.ReactNode }) => {
     if ((name !== 'conversation.chat.user.images' && name !== 'conversation.chat.message.images') || !isImageOwner(owner)) {
       throw new Error(`Unexpected Chat image Slot: ${name}`)
@@ -454,12 +464,16 @@ function makeHarness(
   }
   const renderAssistantSlot: React.ComponentProps<typeof AssistantNodeView>['renderSlot'] = (name, owner, options) =>
     name === 'conversation.chat.message.images' ? renderImages(name, owner, options) : renderReasoningSlot(name, owner, options)
+  const renderUserActions: PropsRenderSlots<'conversation.chat.user-actions'>['renderSlot'] = (_key, owner) => {
+    if (!isUserActionOwner(owner)) throw new Error('Unexpected user action owner')
+    return userActionsOverride?.(owner) ?? null
+  }
   const renderNodeSlot: NodeRenderer = (key, owner, opts) => {
     if (nodeSlotOverride !== undefined) return nodeSlotOverride(key, owner, opts)
     return <HarnessChatNode standard={props} owner={owner}
       hookContext={opts.hookContext} usePerformanceUsage={usePerformanceUsage}
       toolOwners={toolOwners} fallback={opts.fallback} renderAssistantSlot={renderAssistantSlot}
-      renderUserChain={renderUserChain} />
+      renderUserChain={renderUserChain} renderUserActions={renderUserActions} />
   }
   const renderFlowSlot: ChatFlowSlotProps['renderSlot'] = (key: string, owner: object, opts?: {
     fallback?: React.ReactNode
@@ -588,6 +602,7 @@ function makeHarness(
     setFoldedReplies: (replies: FoldedReplies) => { foldedReplies.set(replies) },
     setNodeRenderer: (renderer: NodeRenderer) => { nodeSlotOverride = renderer },
     setImageRenderer: (renderer: ImageRenderer) => { imageSlotOverride = renderer },
+    setUserActions: (renderer: UserActionsRenderer) => { userActionsOverride = renderer },
     setOriginRenderer: (renderer: UserChainRenderer | undefined) => { originRenderer.set({ renderer }) },
   }
 }
@@ -1978,6 +1993,25 @@ describe('ChatView', () => {
     expect(empty).toHaveBeenCalledExactlyOnceWith(
       'conversation.chat.user.before', { source: null, kind: 'user' }, { fallback: null },
     )
+  })
+
+  it('renders contributed user actions inside the same icon row and leaves steering rows alone', () => {
+    const h = makeHarness({
+      nodes: [userInTurn(1, 'question', 1, MessageId('user-question')), steering(2, 'direction', 1)],
+    })
+    const seen = vi.fn<UserActionsRenderer>(owner => (
+      <button type="button" data-test-user-action="">{owner.text}</button>
+    ))
+    h.setUserActions(seen)
+    const view = render(<h.ChatView {...h.props} />)
+    const userRow = view.container.querySelector<HTMLElement>('[data-chat-flow-kind="user"]')!
+    const steeringRow = view.container.querySelector<HTMLElement>('[data-chat-flow-kind="steering"]')!
+    const copy = within(userRow).getByRole('button', { name: '复制' })
+    const action = within(userRow).getByRole('button', { name: 'question' })
+    expect(action.closest('[data-clock]')).toBe(copy.closest('[data-clock]'))
+    expect(copy.compareDocumentPosition(action) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+    expect(seen).toHaveBeenCalledExactlyOnceWith({ messageId: MessageId('user-question'), text: 'question' })
+    expect(steeringRow.querySelector('[data-test-user-action]')).toBeNull()
   })
 
   it('renders Host-pending steering at the flow tail and hands off to the durable node', withClock(2_000, () => {

@@ -45,7 +45,9 @@ Session 作用域的 `conversation.chat.user.content` Factory 只渲染用户内
 
 `UserStyleBubble` 和[各来源包装层](<src/client/chat/MessageItem.tsx#L164-L340>) 保留用户行、key、pending／echo 标记、时间、复制控件及其他消息操作。内容 Factory 不读取来源专属模型或私有 Context，也不是全局用户内容替换入口。
 
-官方 user 与 steering 共用的渲染器在 `user` 注册项上声明 session-scoped `conversation.chat.user.before` chain slot，并在气泡上方直接通过 `renderSlotChain` 渲染；`steering` 注册项复用该渲染器但不拥有该槽位。owner props 携带 Session 记录的持久化消息 `source` 与行 `kind`；各条目的 `select` 匹配自己负责的来源，首个非 null 结果作为 `matched` 交给获选组件。无匹配时不显示内容。条目自行拥有标记和文案；Chat 不解析消息来源。
+官方 user 渲染器在 `user` 注册项上声明 session-scoped `conversation.chat.user.before` chain slot，并在气泡上方直接通过 `renderSlotChain` 渲染；steering 渲染器复用 `UserStyleBubble`，但不拥有该槽位。owner props 携带 Session 记录的持久化消息 `source` 与行 `kind`；各条目的 `select` 匹配自己负责的来源，首个非 null 结果作为 `matched` 交给获选组件。无匹配时不显示内容。条目自行拥有标记和文案；Chat 不解析消息来源。
+
+同一个 `user` 注册项还声明 session-scoped `conversation.chat.user-actions` list slot，并通过 `extraActions` 渲染在消息的 IconActions 行内、内置复制控件之后。owner props 携带持久化的 `messageId` 与该控件复制的 `text`，与 Turn 收尾处的 `conversation.chat.assistant-actions` 一致。待提交项与 steering 行没有持久化消息身份，因此不渲染任何条目。
 
 独立的 Markdown 图片以内嵌预览显示，点击打开共享图片浮层；本地路径在消息落定后基于当前查看的工作区解析。图片文件链接保持点击打开侧栏，鼠标停留或键盘聚焦时显示缩略图，Esc 关闭缩略图。图片加载失败时保留本地化状态与图片说明；不执行重复图片过滤。
 

@@ -323,19 +323,17 @@ export function PendingSubmissionBubble({ submission, loadImage, renderFactorySl
 }
 
 /**
- * Official user and admitted-steering keyed Chat renderer.
+ * Official durable-user keyed Chat renderer.
  *
- * Renders the durable-message chain seat directly above the bubble. The seat is
- * declared by the `user` registration alone, so a steering row renders the same
- * bubble without asking for it.
+ * Renders the durable-message chain seat directly above the bubble and the
+ * per-message action strip inside the row's IconActions.
  */
 export const UserMessageNodeView = memo(function UserMessageNodeView({
-  node, renderFactorySlot, loadImage, renderSlotChain, t,
-}: ChatNodeViewProps<'user' | 'steering'> & {
-  /** Bound by the `user` keyed registration, the only entry that declares the seat. */
-  renderSlotChain: PropsRenderSlots<'conversation.chat.user.before'>['renderSlotChain']
-}) {
+  node, renderFactorySlot, loadImage, renderSlotChain, renderSlot, t,
+}: ChatNodeViewProps<'user'>
+  & PropsRenderSlots<'conversation.chat.user.before' | 'conversation.chat.user-actions'>) {
   const data = node.data
+  const messageId = data.messageId
   return (
     <UserStyleBubble
       node={node}
@@ -344,7 +342,41 @@ export const UserMessageNodeView = memo(function UserMessageNodeView({
       interactive
       renderFactorySlot={renderFactorySlot}
       loadImage={loadImage}
-      batchStart={node.kind === 'steering' && node.data.batchStart === true}
+      {...data.referenceLabels === undefined ? {} : { referenceLabels: data.referenceLabels }}
+      {...data.skillNames === undefined ? {} : { skillNames: data.skillNames }}
+      actions={text => (
+        <MessageIconActions
+          text={text}
+          time={data.time}
+          clock="start"
+          className={css.actions}
+          extraActions={messageId === undefined
+            ? null
+            : renderSlot('conversation.chat.user-actions', { messageId, text })}
+          t={t}
+        />
+      )}
+    />
+  )
+})
+
+/**
+ * Official admitted-steering chat renderer: the same bubble without the seats
+ * the `user` registration alone declares.
+ */
+export const SteeringMessageNodeView = memo(function SteeringMessageNodeView({
+  node, renderFactorySlot, loadImage, t,
+}: ChatNodeViewProps<'steering'>) {
+  const data = node.data
+  return (
+    <UserStyleBubble
+      node={node}
+      renderSlotChain={NO_MESSAGE_SOURCE}
+      content={data.content}
+      interactive
+      renderFactorySlot={renderFactorySlot}
+      loadImage={loadImage}
+      batchStart={data.batchStart === true}
       {...data.referenceLabels === undefined ? {} : { referenceLabels: data.referenceLabels }}
       {...data.skillNames === undefined ? {} : { skillNames: data.skillNames }}
       actions={text => (

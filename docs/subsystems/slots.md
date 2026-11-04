@@ -8,6 +8,8 @@ This page documents slot ownership, component inputs, extension APIs, and the sh
 
 `plugins.bundle.config` supplies bundle detail configuration, keyed by npm package name. `plugins.bundle.activation` renders optional guidance after user-requested enablement, with owner callbacks to dismiss or open that bundle’s details. `conversation.input.activity` supplies one action between the model selector and Send, with toolbar expansion released on unmount.
 
+`conversation.chat.user-actions` and `conversation.chat.assistant-actions` supply ordered actions inside one finalized message's icon row. Each entry receives the message id and the text the built-in copy control writes, and renders inline after that copy control. Pending submissions, steering rows, and interruption-frozen assistant partials render no contributions.
+
 The plugin catalog declares `plugins.add.actions`, a root-scoped list for `MenuItemButton` rows after installation in the Add plugin menu. Its owner supplies `onDismiss()` to close the menu before starting an action. The slot follows the owning Plugins page declaration lifetime.
 
 The root-scoped lists `sidebar.panellist.actions`, `conversation.session.header.views.actions`, and `sidebar.right.tab.guide.actions` supply the rows of the More menus after the panel rows, the View tabs, and the right-sidebar guide cards. A region draws its More button and menu only while its list has registrations, and passes the customizable entries with their pin state, `onOpen`, `onPinnedChange`, and `onDismiss`. Panel and View entries also carry optional `active` state for the current selection, independently of pin state. The `sidebar.panel.icon` root-scoped factory owns the `sidebar.panellist` list and renders its registered icon by `id`, `size`, and `active` for both sidebar rows and More entries. Each region keeps its own unpinned entry ids in memory; [`ui-entry-customization`](../../packages/client/ui-entry-customization/README.md) registers the shipped rows.
@@ -146,8 +148,9 @@ Factory: conversation.content [ConversationContent]
 │     │     └─ conversation.chat.node [ChatNodeSeat dispatch]
 │     │        ├─ key=user [UserMessageNodeView]
 │     │        │  ├─ conversation.chat.user.before [chain]
-│     │        │  └─ calls Factory: conversation.chat.user.content
-│     │        ├─ key=steering [UserMessageNodeView]
+│     │        │  ├─ calls Factory: conversation.chat.user.content
+│     │        │  └─ conversation.chat.user-actions [list]
+│     │        ├─ key=steering [SteeringMessageNodeView]
 │     │        │  └─ calls Factory: conversation.chat.user.content
 │     │        ├─ key=assistant-step [AssistantNodeView / AssistantMarkdown]
 │     │        │  ├─ conversation.chat.message.images [MessageImages]
